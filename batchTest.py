@@ -58,9 +58,13 @@ class BatchTester:
                             default='.TiVo', metavar='FILE_EXTENSION', dest='sourceExtension')
         parser.add_argument('--skip', help="Skip the first N TiVo files", metavar='N', type=int,
                             default=0)
-        parser.add_argument('-j', '--jar',
-                            help="Path to the TivoLibre JAR (default is " + defaultJarPath +")",
-                            default=defaultJarPath, metavar="JAR_PATH")
+        parser.add_argument(
+            '-j',
+            '--jar',
+            help=f"Path to the TivoLibre JAR (default is {defaultJarPath})",
+            default=defaultJarPath,
+            metavar="JAR_PATH",
+        )
         return parser.parse_args()
 
     def copyJarToTmpDir(self, tmpDir):
@@ -70,7 +74,7 @@ class BatchTester:
 
     def printJarVersion(self):
         result = subprocess.run(['java', '-jar', self.jarPath, '-v'], stdout=subprocess.PIPE)
-        print("Running with {}".format(result.stdout.decode('utf-8')), end='')
+        print(f"Running with {result.stdout.decode('utf-8')}", end='')
 
     def testFilesInDir(self):
         tivoFiles = self.listSourceFiles()
@@ -93,9 +97,9 @@ class BatchTester:
     def listSourceFiles(self):
         sourceFiles = []
         for path, subdirs, files in os.walk(self.args.testDir):
-            for name in files:
-                if self.isTivoFile(name):
-                    sourceFiles.append(os.path.join(path, name))
+            sourceFiles.extend(
+                os.path.join(path, name) for name in files if self.isTivoFile(name)
+            )
         sourceFiles.sort()
         return sourceFiles
 
@@ -111,19 +115,19 @@ class BatchTester:
         if (os.path.isfile(outputPath)):
             print("Deleting existing output file...")
             os.remove(outputPath)
-        print("Decoding to {}...".format(outputPath))
+        print(f"Decoding to {outputPath}...")
         subprocess.run(['java', '-jar', self.jarPath, '-m', self.args.mak, '-i', inputPath,
                         '-o', outputPath, '--compat-mode'])
         referencePath = outputPath.replace(self.args.ourExtension, self.args.refExtension)
-        print("Comparing output to reference file {}...".format(referencePath))
+        print(f"Comparing output to reference file {referencePath}...")
         result = subprocess.run(['diff', outputPath, referencePath])
 
         filesAreSame = None
         if result.returncode is not 0:
-            print(bcolors.FAIL + "These files are different :(" + bcolors.ENDC)
+            print(f"{bcolors.FAIL}These files are different :({bcolors.ENDC}")
             filesAreSame = False
         else:
-            print(bcolors.OKGREEN + "These files are identical!" + bcolors.ENDC)
+            print(f"{bcolors.OKGREEN}These files are identical!{bcolors.ENDC}")
             filesAreSame = True
 
         print("Deleting output file...")
@@ -137,16 +141,14 @@ class BatchTester:
                 plural = 's'
             print("\nPerfectly decoded {:,d} file{}:{}".format(len(perfectFiles), plural, bcolors.OKGREEN))
             for filePath in perfectFiles:
-                print("\t{}".format(filePath))
+                print(f"\t{filePath}")
             print(bcolors.ENDC)
 
         if filesWithDifferences:
-            plural = ''
-            if len(filesWithDifferences) > 1:
-                plural = 's'
+            plural = 's' if len(filesWithDifferences) > 1 else ''
             print("Need to fix {:,d} file{}:{}".format(len(filesWithDifferences), plural, bcolors.FAIL))
             for filePath in filesWithDifferences:
-                print("\t{}".format(filePath))
+                print(f"\t{filePath}")
             print(bcolors.ENDC)
 
 if __name__ == "__main__":
